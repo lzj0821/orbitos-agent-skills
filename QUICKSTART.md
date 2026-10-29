@@ -24,7 +24,7 @@ cp -R skills/* ~/.codex/skills/
 
 ## 3. First run: a safe health check
 
-Start with saodust because it is read-first and changes nothing. Make a tiny throwaway vault — three or four Markdown notes, one of them linking to a note that does not exist — then ask:
+Start with saodust because it is read-first and changes nothing. Copy the ready-made fake vault in `examples/fixtures/fake-vault/` (it has planted orphans, dead links, and inbox backlog) — or make a tiny throwaway vault of your own — then ask:
 
 ```text
 Use the saodust skill to run a dry-run health check on this folder. Report a score, the top findings, and the three highest-value cleanup actions. Do not move, rename, or delete anything.
