@@ -28,6 +28,8 @@ These skills are written for real daily work, not demo prompts. They emphasize t
 
 ## Installation
 
+New here? Follow the text-only [Quickstart](QUICKSTART.md) — it takes you from clone to a first safe run.
+
 Clone the repository and copy the skill folders into your agent's skills directory.
 
 ```bash
