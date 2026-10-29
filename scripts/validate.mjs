@@ -97,6 +97,66 @@ if (!fs.existsSync(skillsDir)) {
   }
 }
 
+// --- Privacy checklist for examples (issue #6) ---
+// Examples must stay fake. Scan every Markdown file under examples/ for
+// obvious private-data patterns. tests/fixtures/dirty-example.md is a
+// self-test: the scanner MUST flag every category in it.
+
+const privacyPatterns = [
+  { name: "Windows user path", re: /[A-Za-z]:\\Users\\[^\\\s"']+/ },
+  { name: "Unix home path", re: /\/(?:home|Users)\/[A-Za-z0-9._-]+\// },
+  { name: "API key / token shape", re: /(?:sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,})/ },
+  { name: "Secret assignment", re: /(?:api[_-]?key|access[_-]?token|client[_-]?secret|password)\s*[:=]\s*["']?[A-Za-z0-9!@#$%^&*._-]{8,}/i },
+  { name: "Email address", re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/, allow: /@example\.(?:com|org|net)$/i },
+  { name: "Phone number (CN mobile)", re: /(?<!\d)1[3-9]\d{9}(?!\d)/ },
+];
+
+function scanText(text) {
+  const hits = [];
+  for (const { name, re, allow } of privacyPatterns) {
+    const flags = re.flags.includes("g") ? re.flags : re.flags + "g";
+    for (const match of text.matchAll(new RegExp(re.source, flags))) {
+      if (allow && allow.test(match[0])) continue;
+      hits.push(name);
+      break; // one hit per category per file is enough to report
+    }
+  }
+  return hits;
+}
+
+function* walkMarkdown(dir) {
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) yield* walkMarkdown(full);
+    else if (entry.isFile() && entry.name.endsWith(".md")) yield full;
+  }
+}
+
+let exampleFiles = 0;
+for (const file of walkMarkdown(path.join(root, "examples"))) {
+  exampleFiles += 1;
+  const hits = scanText(fs.readFileSync(file, "utf8"));
+  if (hits.length > 0) {
+    fail(`privacy: ${path.relative(root, file)} contains ${hits.join(", ")}`);
+  }
+}
+pass(`privacy: scanned ${exampleFiles} example files`);
+
+const dirtyFixture = path.join(root, "tests", "fixtures", "dirty-example.md");
+if (!fs.existsSync(dirtyFixture)) {
+  fail("privacy self-test fixture is missing: tests/fixtures/dirty-example.md");
+} else {
+  const detected = scanText(fs.readFileSync(dirtyFixture, "utf8"));
+  const expected = privacyPatterns.map((p) => p.name);
+  const missing = expected.filter((name) => !detected.includes(name));
+  if (missing.length > 0) {
+    fail(`privacy self-test: scanner missed ${missing.join(", ")} in dirty fixture`);
+  } else {
+    pass("privacy self-test: dirty fixture fully detected");
+  }
+}
+
 if (failed) {
   process.exitCode = 1;
 } else {
